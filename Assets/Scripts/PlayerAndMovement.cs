@@ -1,19 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerAndMovement : MonoBehaviour
 {
     private SpriteRenderer playerSprite;
     private Rigidbody2D rigidBody;
-    private Animator animator;
+    private ParticleSystem particleSystem;
 
     [Header("Stats")]
     public float speed = 1f;
     public float airSpeed = 0f;
-    [SerializeField] float jumpForce = 3;
+    [SerializeField] float jumpForce = 3f;
     [SerializeField] int health = 3;
-    [SerializeField] int stamina = 3;
 
     public enum PlayerMovementType { ground, air };
     [SerializeField] PlayerMovementType movementType = PlayerMovementType.ground;
@@ -28,32 +29,31 @@ public class PlayerAndMovement : MonoBehaviour
 
     [Header("Rope Physics")]
     public float swingForce = 4f;
-    public Vector2 ropeHook;
     public bool isSwinging;
     public bool groundCheck;
+    private Vector2 ropeHook = Vector2.zero;
 
 
     [Header("Flavor")]
     [SerializeField] string characterName = "Blitz";
-    //public GameObject body;
+    [SerializeField] private List<AnimationStateChanger> animationStateChangers;
+    public bool hookOut = false;
 
     [Header("Tracked Data")]
     [SerializeField] Vector3 homePosition = Vector3.zero;
 
     public LineRenderer ropeRenderer;
     public LayerMask ropeLayerMask;
-    // [SerializeField] EntitySO entitySO;
-
-    // Rigidbody2D rb;
-    SpriteRenderer body;
-
+    private SceneManager sceneManager;
 
     void Awake()
     {
         playerSprite = GetComponent<SpriteRenderer>();
         rigidBody = GetComponent<Rigidbody2D>();
+        particleSystem = GetComponent<ParticleSystem>();
         // animator = GetComponent<Animator>();
-        body = GetComponent<SpriteRenderer>();
+        //body = GetComponent<SpriteRenderer>();
+        //ropeRenderer = GetComponent<LineRenderer>();
     }
 
     void Update()
@@ -61,35 +61,51 @@ public class PlayerAndMovement : MonoBehaviour
         jumpInput = Input.GetAxis("Jump");
         horizontalInput = Input.GetAxis("Horizontal");
         var halfHeight = transform.GetComponent<SpriteRenderer>().bounds.extents.y;
-        groundCheck = Physics2D.Raycast(new Vector2(transform.localPosition.x, transform.localPosition.y - halfHeight - 0.04f), Vector2.down, 0.025f);
+        groundCheck = Physics2D.Raycast(new Vector2(transform.position.x, transform.position.y - halfHeight - 0.05f - 0.04f), Vector2.down, 0.025f);
+        /*if (isSwinging) {
+            ropeRenderer.SetPosition(rigidBody.transform.localPosition, )
+        }*/
     }
 
     void FixedUpdate()
     {
+        //ropeRenderer.SetPosition(1, rigidBody.transform.localPosition);
+        
+        if (hookOut)
+        {
+            foreach (AnimationStateChanger asc in animationStateChangers)
+            {
+                asc.ChangeAnimationState("Ninja_Swing");
+            }
+        }
         if (horizontalInput < 0f || horizontalInput > 0f)
         {
-            // animator.SetFloat("Speed", Mathf.Abs(horizontalInput));
+            if (!hookOut)
+            {
+                foreach (AnimationStateChanger asc in animationStateChangers)
+                {
+                    asc.ChangeAnimationState("Ninja_Walk_Hook");
+                }
+            }
             playerSprite.flipX = horizontalInput > 0f;
             if (isSwinging)
             {
-                // animator.SetBool("IsSwinging", true);
-
                 // Get normalized direction vector from player to the hook point
                 var playerToHookDirection = (ropeHook - (Vector2)transform.localPosition).normalized;
 
-                // Inverse the direction to get a prependicular direction
+                // Inverse the direction to get a perpendicular direction
                 Vector2 perpendicularDirection;
                 if (horizontalInput < 0)
                 {
                     perpendicularDirection = new Vector2(-playerToHookDirection.y, playerToHookDirection.x);
                     var leftPerpPos = (Vector2)transform.localPosition - perpendicularDirection * -2f;
-                    Debug.DrawLine(transform.localPosition, leftPerpPos, Color.green, 0f);
+                    // Debug.DrawLine(transform.localPosition, leftPerpPos, Color.green, 0f);
                 }
                 else
                 {
                     perpendicularDirection = new Vector2(playerToHookDirection.y, -playerToHookDirection.x);
                     var rightPerpPos = (Vector2)transform.localPosition + perpendicularDirection * 2f;
-                    Debug.DrawLine(transform.localPosition, rightPerpPos, Color.green, 0f);
+                    // Debug.DrawLine(transform.localPosition, rightPerpPos, Color.green, 0f);
                 }
 
                 var force = perpendicularDirection * swingForce;
@@ -97,28 +113,24 @@ public class PlayerAndMovement : MonoBehaviour
             }
             else
             {
-                // animator.SetBool("IsSwinging", false);
                 Vector3 currentVelocity = Vector3.zero;
                 Vector3 direction = Vector3.zero;
                 currentVelocity = new Vector3(0, rigidBody.velocity.y, 0);
                 direction.x = horizontalInput;
 
-                /*
-                var groundForce = speed * 2f;
-                rigidBody.AddForce(new Vector2((horizontalInput * groundForce - rigidBody.velocity.x) * groundForce, 0));*/
-                rigidBody.velocity = (currentVelocity) + (direction * speed); // new Vector2(rigidBody.velocity.x, rigidBody.velocity.y);
-                /*if (groundCheck)
-                {
-                    var groundForce = speed * 2f;
-                    rigidBody.AddForce(new Vector2((horizontalInput * groundForce - rigidBody.velocity.x) * groundForce, 0));
-                    rigidBody.velocity = new Vector2(rigidBody.velocity.x, rigidBody.velocity.y);
-                }*/
+                rigidBody.velocity = (currentVelocity) + (direction * speed);
             }
         }
         else
         {
-            // animator.SetBool("IsSwinging", false);
-            // animator.SetFloat("Speed", 0f);
+            if (!hookOut)
+            {
+                foreach (AnimationStateChanger asc in animationStateChangers)
+                {
+                    asc.ChangeAnimationState("Ninja_Idle_Hook");
+                }
+            }
+
         }
 
         if (!isSwinging)
@@ -133,4 +145,32 @@ public class PlayerAndMovement : MonoBehaviour
         }
     }
 
+    public void ReceiveHookPos(Vector2 hookPos)
+    {
+        ropeHook = hookPos;
+    }
+
+    public void SwingAnim()
+    {
+        hookOut = true;
+    }
+
+    public void StopSwingAnim()
+    {
+        hookOut = false;
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.gameObject.tag == "Enemy")
+        {
+            health -= 1;
+            Debug.Log(health);
+        }
+        if (health <= 0)
+        {
+            Scene currentScene = SceneManager.GetActiveScene();
+            SceneManager.LoadScene(currentScene.buildIndex);
+        }
+    }
 }

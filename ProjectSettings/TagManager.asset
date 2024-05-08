@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Environment
   - Destructable
+  - Hook
+  - Terrain
+  - Enemy
   layers:
   - Default
   - TransparentFX

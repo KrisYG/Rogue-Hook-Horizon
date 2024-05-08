@@ -5,14 +5,14 @@ using UnityEngine.SceneManagement;
 
 public class DetectLose : MonoBehaviour
 {
-    public float loseHeight = -5f;
+    public float loseHeight = -10f;
 
     // Update is called once per frame
     void Update()
     {
         if (transform.position.y <= loseHeight)
         {
-            SceneManager.LoadScene("Level_1");
+            SceneManager.LoadScene("LevelHub");
         }
     }
 }

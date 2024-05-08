@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GrapplingHook : MonoBehaviour
 {
@@ -14,15 +15,19 @@ public class GrapplingHook : MonoBehaviour
     public PlayerAndMovement playerMovement;
     private bool ropeAttached;
     private Vector2 playerPosition;
+    private Vector3 playerPositionV3;
     private float ropeMaxCastDistance = 20f;
     private bool distanceSet;
     private bool isColliding;
     GameObject hookProjectile;
+    PlayerAndMovement playerScript;
+
 
     void Awake()
     {
         ropeJoint.enabled = false;
         playerPosition = transform.localPosition;
+        playerScript = GetComponent<PlayerAndMovement>();
     }
 
     public GameObject Launch(Vector3 targetPos)
@@ -36,15 +41,16 @@ public class GrapplingHook : MonoBehaviour
     void Update()
     {
         var worldMousePosition = Camera.main.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0f));
-        var facingDirection = worldMousePosition - transform.localPosition;
-        var aimAngle = Mathf.Atan2(facingDirection.y, facingDirection.x);
-        if (aimAngle < 0f)
+        // var facingDirection = worldMousePosition - transform.localPosition;
+        // var aimAngle = Mathf.Atan2(facingDirection.y, facingDirection.x);
+        /*if (aimAngle < 0f)
         {
             aimAngle = Mathf.PI * 2 + aimAngle;
-        }
+        }*/
 
-        var aimDirection = Quaternion.Euler(0, 0, aimAngle * Mathf.Rad2Deg) * Vector2.right;
+        //var aimDirection = Quaternion.Euler(0, 0, aimAngle * Mathf.Rad2Deg) * Vector2.right;
         playerPosition = transform.localPosition;
+        playerPositionV3 = transform.localPosition;
 
         if (!ropeAttached)
         {
@@ -57,13 +63,19 @@ public class GrapplingHook : MonoBehaviour
         }
         UpdateRopePosition();
         HandleRopeLength();
-        HandleInput(aimDirection);
+        HandleInput();
     }
 
-    private void HandleInput(Vector2 aimDirection)
+    private void HandleInput()
     {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            SceneManager.LoadScene("StartMenu");
+        }
+
         if (Input.GetKeyDown(KeyCode.LeftShift))
         {
+            playerScript.SwingAnim();
             if (hookProjectile == null)
             {
                 ResetRope();
@@ -79,22 +91,13 @@ public class GrapplingHook : MonoBehaviour
                 ropeAttached = true;
                 //Debug.Log("Rope Attached here");
             }
+            ropeRenderer.SetPosition(1, playerPositionV3);
         }
-
-        /*if (Input.GetKey(KeyCode.LeftShift))
-        {
-            
-        }
-        else
-        {
-            ropeRenderer.enabled = false;
-            ropeAttached = false;
-            ropeJoint.enabled = false;
-        }*/
 
         if (Input.GetKeyUp(KeyCode.LeftShift))
         {
             ResetRope();
+            playerScript.StopSwingAnim();
         }
     }
 
